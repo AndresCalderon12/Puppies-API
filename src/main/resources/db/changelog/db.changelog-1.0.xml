@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="create-users-table" author="Andres Calderon">
+        <createTable tableName="users">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="create-posts-table" author="your-name">
+        <createTable tableName="posts">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="image_url" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="text_content" type="CLOB"/>
+            <column name="date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="posts" baseColumnNames="user_id"
+                                 constraintName="fk_post_user"
+                                 referencedTableName="users" referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="create-likes-table" author="your-name">
+        <createTable tableName="likes">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+            </column>
+            <column name="post_id" type="BIGINT">
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="likes" columnNames="user_id, post_id" constraintName="uk_user_post"/>
+        <addForeignKeyConstraint baseTableName="likes" baseColumnNames="user_id"
+                                 constraintName="fk_like_user"
+                                 referencedTableName="users" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="likes" baseColumnNames="post_id"
+                                 constraintName="fk_like_post"
+                                 referencedTableName="posts" referencedColumnNames="id"/>
+    </changeSet>
+
+</databaseChangeLog>
