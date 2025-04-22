@@ -37,7 +37,7 @@ public class PostServiceTest {
         Long userId = 1L;
         String imageUrl = " http://example.com/image.jpg ";
         String textContent = " Cute puppy! ";
-        User creator = new User(userId, "Creator", "creator@example.com");
+        User creator = new User(userId, "Creator", "creator@example.com","test");
 
         when(userService.getUserById(userId)).thenReturn(Optional.of(creator));
 
@@ -78,8 +78,8 @@ public class PostServiceTest {
 
     @Test
     void getUserFeed_postsExist_shouldReturnPagedPosts() {
-        User user1 = new User(1L, "User 1", "user1@example.com");
-        User user2 = new User(2L, "User 2", "user2@example.com");
+        User user1 = new User(1L, "User 1", "user1@example.com","test");
+        User user2 = new User(2L, "User 2", "user2@example.com","test");
         LocalDateTime now = LocalDateTime.now();
         Post post1 = new Post(1L, "url1", "text1", now.minusDays(1), user1);
         Post post2 = new Post(2L, "url2", "text2", now, user2);
@@ -125,7 +125,7 @@ public class PostServiceTest {
     @Test
     void getPostById_existingId_shouldReturnPost() {
         Long postId = 10L;
-        User user = new User(1L, "User", "user@example.com");
+        User user = new User(1L, "User", "user@example.com","test");
         Post expectedPost = new Post(postId, "url", "content", LocalDateTime.now(), user);
         when(postRepository.findById(postId)).thenReturn(Optional.of(expectedPost));
 

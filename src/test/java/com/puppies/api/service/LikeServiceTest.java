@@ -44,8 +44,8 @@ public class LikeServiceTest {
     void setUp() {
         userId = 1L;
         postId = 10L;
-        user = new User(userId, "Test User", "test@example.com");
-        User postAuthor = new User(2L, "Author", "author@example.com");
+        user = new User(userId, "Test User", "test@example.com","test");
+        User postAuthor = new User(2L, "Author", "author@example.com","test");
         post = new Post(postId, "http://example.com/post.jpg", "Test Post Content", null, postAuthor);
         existingLike = new Like();
         existingLike.setId(100L);

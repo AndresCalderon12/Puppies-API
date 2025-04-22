@@ -7,15 +7,19 @@ import com.puppies.api.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Locale;
 
 @Service
-public class UserService {
+public class UserService implements UserDetailsService {
 
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
@@ -61,5 +65,11 @@ public class UserService {
             log.debug("User found with ID: {}", id);
         }
         return userOptional;
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        return userRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
     }
 }

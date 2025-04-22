@@ -28,7 +28,7 @@ public class UserServiceTest {
     void createUser_validInput_shouldSaveUserAndReturn() {
         String name = "Test User";
         String email = "test@example.com";
-        User newUser = new User(null, name, email);
+        User newUser = new User(null, name, email,"test");
 
         when(userRepository.save(any(User.class))).thenReturn(newUser);
 
@@ -43,7 +43,7 @@ public class UserServiceTest {
     @Test
     void getUserById_existingId_shouldReturnUser() {
         Long userId = 1L;
-        User expectedUser = new User(userId, "Test User", "test@example.com");
+        User expectedUser = new User(userId, "Test User", "test@example.com","test");
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(expectedUser));
 
