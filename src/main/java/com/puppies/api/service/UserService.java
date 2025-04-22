@@ -1,7 +1,11 @@
 package com.puppies.api.service;
 
+import com.puppies.api.dto.response.UserResponseDTO;
+import com.puppies.api.exception.NotFoundException;
 import com.puppies.api.exception.UserAlreadyExistsException;
 import com.puppies.api.model.User;
+import com.puppies.api.repository.LikeRepository;
+import com.puppies.api.repository.PostRepository;
 import com.puppies.api.repository.UserRepository;
 
 import org.slf4j.Logger;
@@ -28,9 +32,15 @@ public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    private final PostRepository postRepository;
+
+    private final LikeRepository likeRepository;
+
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, PostRepository postRepository, LikeRepository likeRepository) {
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
+        this.postRepository = postRepository;
+        this.likeRepository = likeRepository;
     }
 
     @Transactional
@@ -70,6 +80,30 @@ public class UserService implements UserDetailsService {
             log.debug("User found with ID: {}", id);
         }
         return userOptional;
+    }
+
+    @Transactional(readOnly = true) // Read-only operation
+    public UserResponseDTO getUserProfile(Long userId) {
+        Assert.notNull(userId, "User ID cannot be null.");
+        log.info("Fetching profile for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.warn("User profile not found for ID: {}", userId);
+                    return new NotFoundException("User not found with ID: " + userId);
+                });
+
+        long postCount = postRepository.countByUserId(userId);
+
+        long likedCount = likeRepository.countByUserId(userId);
+
+        return new UserResponseDTO(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                postCount,
+                likedCount
+        );
     }
 
     @Override

@@ -14,5 +14,5 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p JOIN Like l ON l.post = p WHERE l.user.id = :userId")
     Page<Post> findPostsLikedByUser(@Param("userId") Long userId, Pageable pageable);
     Page<Post> findByUserIdOrderByDateDesc(Long userId, Pageable pageable);
-
+    long countByUserId(Long userId);
 }
