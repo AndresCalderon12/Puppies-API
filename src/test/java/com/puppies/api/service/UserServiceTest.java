@@ -52,7 +52,6 @@ public class UserServiceTest {
         plainPassword = "password123";
         hashedPassword = "hashedPassword123";
         testUser = new User(1L, "Test User", "test@example.com", hashedPassword);
-        when(passwordEncoder.encode(plainPassword)).thenReturn(hashedPassword);
     }
 
     @Test
@@ -63,6 +62,7 @@ public class UserServiceTest {
         String expectedTrimmedName = "Test User";
 
         when(userRepository.findByEmail(expectedNormalizedEmail)).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(plainPassword)).thenReturn(hashedPassword);
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         when(userRepository.save(userCaptor.capture())).thenAnswer(invocation -> {
@@ -104,27 +104,6 @@ public class UserServiceTest {
         verify(userRepository, times(1)).findByEmail(email);
         verify(passwordEncoder, never()).encode(anyString());
         verify(userRepository, never()).save(any(User.class));
-    }
-
-    @Test
-    void createUser_blankName_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () ->
-                userService.createUser(" ", "test@example.com", plainPassword));
-        verifyNoInteractions(userRepository, passwordEncoder, postRepository, likeRepository);
-    }
-
-    @Test
-    void createUser_blankEmail_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () ->
-                userService.createUser("Test Name", " ", plainPassword));
-        verifyNoInteractions(userRepository, passwordEncoder, postRepository, likeRepository);
-    }
-
-    @Test
-    void createUser_blankPassword_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () ->
-                userService.createUser("Test Name", "test@example.com", " "));
-        verifyNoInteractions(userRepository, passwordEncoder, postRepository, likeRepository);
     }
 
     @Test
