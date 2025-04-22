@@ -50,11 +50,22 @@ Ensure PostgreSQL is running, then create the database:
 ```sql
 CREATE DATABASE puppies;
 ```
+### Test Database: (e.g., `puppies_test`)
+    ```sql
+    CREATE DATABASE puppies_test;
+    ```
 
 Update the connection details in `src/main/resources/application.properties`:
 
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/puppies
+spring.datasource.username=your_db_username
+spring.datasource.password=your_db_password
+```
+
+Update the connection details for integration test in `src/main/test/resources/application-test.properties`:
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/puppies_test
 spring.datasource.username=your_db_username
 spring.datasource.password=your_db_password
 ```
