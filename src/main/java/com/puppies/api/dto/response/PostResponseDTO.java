@@ -17,4 +17,5 @@ public class PostResponseDTO {
     private LocalDateTime date;
     private Long userId;
     private String userName;
+    private long likeCount;
 }

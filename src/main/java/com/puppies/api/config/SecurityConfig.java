@@ -35,8 +35,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll() // Allow creating users
-                        .requestMatchers(HttpMethod.GET, "/api/posts/feed").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/posts/{postId}").permitAll()
                         .anyRequest().authenticated()
                 );
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
