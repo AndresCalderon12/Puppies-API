@@ -19,6 +19,14 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
+    private static final String[] SWAGGER_PATHS = {
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/v3/api-docs/**",
+            "/swagger-resources/**",
+            "/webjars/**"
+    };
+
     public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
     }
@@ -34,7 +42,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/users").permitAll() // Allow creating users
+                        .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+                        .requestMatchers(SWAGGER_PATHS).permitAll()
                         .anyRequest().authenticated()
                 );
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
