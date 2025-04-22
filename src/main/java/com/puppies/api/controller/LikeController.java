@@ -18,10 +18,7 @@ public class LikeController {
 
     @PostMapping
     public ResponseEntity<Void> likePost(@PathVariable Long postId, @RequestParam Long userId) {
-        if (likeService.likePost(userId, postId)) {
-            return new ResponseEntity<>(HttpStatus.CREATED);
-        } else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+        likeService.toggleLike(userId, postId);
+        return new ResponseEntity<>(HttpStatus.CREATED);
     }
 }

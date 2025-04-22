@@ -1,11 +1,15 @@
 package com.puppies.api.service;
 
+import com.puppies.api.exception.NotFoundException;
 import com.puppies.api.model.Like;
 import com.puppies.api.model.Post;
 import com.puppies.api.model.User;
 import com.puppies.api.repository.LikeRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
+
+import java.util.Optional;
 
 @Service
 public class LikeService {
@@ -20,20 +24,26 @@ public class LikeService {
     }
 
     @Transactional
-    public boolean likePost(Long userId, Long postId) {
-        User user = userService.getUserById(userId);
+    public boolean toggleLike(Long userId, Long postId) {
+        Assert.notNull(userId, "User ID cannot be null");
+        Assert.notNull(postId, "Post ID cannot be null");
+
+        User user = userService.getUserById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found with ID: " + userId));
+
         Post post = postService.getPostById(postId);
-        if (user == null || post == null) {
+
+        Optional<Like> existingLike = likeRepository.findByUserAndPost(user, post);
+
+        if (existingLike.isPresent()) {
+            likeRepository.delete(existingLike.get());
             return false;
-        }
-        if (likeRepository.findByUserAndPost(user, post).isEmpty()) {
-            Like like = new Like();
-            like.setUser(user);
-            like.setPost(post);
-            likeRepository.save(like);
+        } else {
+            Like newLike = new Like();
+            newLike.setUser(user);
+            newLike.setPost(post);
+            likeRepository.save(newLike);
             return true;
         }
-        return false;
     }
-
 }
