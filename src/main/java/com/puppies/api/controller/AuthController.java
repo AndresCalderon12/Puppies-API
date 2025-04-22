@@ -48,20 +48,7 @@ public class AuthController {
             String jwt = jwtUtil.generateToken(authentication);
             log.debug("JWT generated successfully for user: {}", loginRequest.getEmail());
 
-            Object principal = authentication.getPrincipal();
-            Long userId = null;
-            String userName;
-
-            if (principal instanceof User) {
-                userId = ((User) principal).getId();
-                userName = ((User) principal).getName();
-            } else if (principal instanceof UserDetails) {
-                userName = ((UserDetails) principal).getUsername();
-            } else {
-                userName = principal.toString();
-            }
-
-            LoginResponseDTO response = new LoginResponseDTO(jwt, userId, userName);
+            LoginResponseDTO response = getLoginResponseDTO(authentication, jwt);
 
             return ResponseEntity.ok(response);
 
@@ -75,6 +62,23 @@ public class AuthController {
             log.error("Unexpected error during login for user {}: {}", loginRequest.getEmail(), e.getMessage(), e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Login failed due to an internal error", e);
         }
+    }
+
+    private static LoginResponseDTO getLoginResponseDTO(Authentication authentication, String jwt) {
+        Object principal = authentication.getPrincipal();
+        Long userId = null;
+        String userName;
+
+        if (principal instanceof User) {
+            userId = ((User) principal).getId();
+            userName = ((User) principal).getName();
+        } else if (principal instanceof UserDetails) {
+            userName = ((UserDetails) principal).getUsername();
+        } else {
+            userName = principal.toString();
+        }
+
+        return new LoginResponseDTO(jwt, userId, userName);
     }
 
     @PostMapping("/logout")

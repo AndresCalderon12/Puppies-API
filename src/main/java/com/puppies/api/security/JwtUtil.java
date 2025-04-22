@@ -40,10 +40,6 @@ public class JwtUtil {
         return buildToken(userPrincipal.getUsername());
     }
 
-    public String generateTokenFromUsername(String username) {
-        return buildToken(username);
-    }
-
     private String buildToken(String subject) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);

@@ -2,9 +2,7 @@ package com.puppies.api.controller;
 
 
 import com.puppies.api.dto.request.CreateUserRequest;
-import com.puppies.api.dto.response.PostResponseDTO;
 import com.puppies.api.dto.response.UserResponseDTO;
-import com.puppies.api.model.Post;
 import com.puppies.api.model.User;
 import com.puppies.api.service.UserService;
 import org.springframework.http.HttpStatus;

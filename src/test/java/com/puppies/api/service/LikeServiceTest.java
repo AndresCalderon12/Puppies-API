@@ -8,10 +8,12 @@ import com.puppies.api.repository.LikeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,7 +21,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class LikeServiceTest {
+class LikeServiceTest {
+
     @Mock
     private LikeRepository likeRepository;
 
@@ -32,68 +35,83 @@ public class LikeServiceTest {
     @InjectMocks
     private LikeService likeService;
 
-    // Define common test data
-    private Long userId;
-    private Long postId;
-    private User user;
-    private Post post;
-    private Like existingLike;
-
+    private User testUser;
+    private Post testPost;
+    private Like testLike;
 
     @BeforeEach
     void setUp() {
-        userId = 1L;
-        postId = 10L;
-        user = new User(userId, "Test User", "test@example.com","test");
-        User postAuthor = new User(2L, "Author", "author@example.com","test");
-        post = new Post(postId, "http://example.com/post.jpg", "Test Post Content", null, postAuthor);
-        existingLike = new Like();
-        existingLike.setId(100L);
-        existingLike.setUser(user);
-        existingLike.setPost(post);
+        testUser = new User(1L, "Test User", "test@example.com", "hashedPassword");
+        testPost = new Post(10L, "image.jpg", "Test Post", LocalDateTime.now(), testUser);
+        testLike = new Like();
+        testLike.setId(100L);
+        testLike.setUser(testUser);
+        testLike.setPost(testPost);
     }
 
     @Test
-    void toggleLike_whenNotLiked_shouldCreateLikeAndReturnTrue() {
-        when(userService.getUserById(userId)).thenReturn(Optional.of(user));
-        when(postService.getPostById(postId)).thenReturn(post);
-        when(likeRepository.findByUserAndPost(user, post)).thenReturn(Optional.empty());
-        when(likeRepository.save(any(Like.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    void toggleLike_whenLikeDoesNotExist_shouldCreateLikeAndReturnTrue() {
+        Long userId = testUser.getId();
+        Long postId = testPost.getId();
+
+        when(userService.getUserById(userId)).thenReturn(Optional.of(testUser));
+        when(postService.getPostById(postId)).thenReturn(testPost);
+        when(likeRepository.findByUserAndPost(testUser, testPost)).thenReturn(Optional.empty());
+
+        ArgumentCaptor<Like> likeCaptor = ArgumentCaptor.forClass(Like.class);
+        when(likeRepository.save(likeCaptor.capture())).thenReturn(testLike); // Return a mock saved like
 
         boolean result = likeService.toggleLike(userId, postId);
 
-        assertTrue(result, "Should return true indicating the post is now liked.");
+        assertTrue(result);
+        Like capturedLike = likeCaptor.getValue();
+        assertNotNull(capturedLike);
+        assertEquals(testUser, capturedLike.getUser());
+        assertEquals(testPost, capturedLike.getPost());
+        assertNull(capturedLike.getId()); // ID should be null before save
 
         verify(userService, times(1)).getUserById(userId);
         verify(postService, times(1)).getPostById(postId);
-        verify(likeRepository, times(1)).findByUserAndPost(user, post);
+        verify(likeRepository, times(1)).findByUserAndPost(testUser, testPost);
         verify(likeRepository, times(1)).save(any(Like.class));
         verify(likeRepository, never()).delete(any(Like.class));
     }
 
     @Test
-    void toggleLike_whenAlreadyLiked_shouldDeleteLikeAndReturnFalse() {
-        when(userService.getUserById(userId)).thenReturn(Optional.of(user));
-        when(postService.getPostById(postId)).thenReturn(post);
-        when(likeRepository.findByUserAndPost(user, post)).thenReturn(Optional.of(existingLike));
+    void toggleLike_whenLikeExists_shouldDeleteLikeAndReturnFalse() {
+        Long userId = testUser.getId();
+        Long postId = testPost.getId();
+
+        when(userService.getUserById(userId)).thenReturn(Optional.of(testUser));
+        when(postService.getPostById(postId)).thenReturn(testPost);
+        when(likeRepository.findByUserAndPost(testUser, testPost)).thenReturn(Optional.of(testLike));
+        // No need to mock delete, just verify it's called
+        doNothing().when(likeRepository).delete(testLike);
 
         boolean result = likeService.toggleLike(userId, postId);
 
-        assertFalse(result, "Should return false indicating the post is now not liked.");
+        assertFalse(result);
+
         verify(userService, times(1)).getUserById(userId);
         verify(postService, times(1)).getPostById(postId);
-        verify(likeRepository, times(1)).findByUserAndPost(user, post);
-        verify(likeRepository, times(1)).delete(existingLike);
+        verify(likeRepository, times(1)).findByUserAndPost(testUser, testPost);
+        verify(likeRepository, times(1)).delete(testLike);
         verify(likeRepository, never()).save(any(Like.class));
     }
 
     @Test
     void toggleLike_whenUserNotFound_shouldThrowNotFoundException() {
-        when(userService.getUserById(userId)).thenReturn(Optional.empty());
+        Long userId = 99L;
+        Long postId = testPost.getId();
 
-        assertThrows(NotFoundException.class, () ->
-                likeService.toggleLike(userId, postId),
-                "Should throw NotFoundException when user doesn't exist.");
+        when(userService.getUserById(userId)).thenReturn(Optional.empty());
+        // postService.getPostById should not be called
+
+        NotFoundException ex = assertThrows(NotFoundException.class, () -> {
+            likeService.toggleLike(userId, postId);
+        });
+
+        assertTrue(ex.getMessage().contains("User not found"));
 
         verify(userService, times(1)).getUserById(userId);
         verifyNoInteractions(postService);
@@ -102,12 +120,18 @@ public class LikeServiceTest {
 
     @Test
     void toggleLike_whenPostNotFound_shouldThrowNotFoundException() {
-        when(userService.getUserById(userId)).thenReturn(Optional.of(user));
+        Long userId = testUser.getId();
+        Long postId = 99L;
+
+        when(userService.getUserById(userId)).thenReturn(Optional.of(testUser));
+        // Simulate PostService throwing NotFoundException
         when(postService.getPostById(postId)).thenThrow(new NotFoundException("Post not found"));
 
-        assertThrows(NotFoundException.class, () ->
-                likeService.toggleLike(userId, postId),
-                "Should throw NotFoundException when post doesn't exist.");
+        NotFoundException ex = assertThrows(NotFoundException.class, () -> {
+            likeService.toggleLike(userId, postId);
+        });
+
+        assertTrue(ex.getMessage().contains("Post not found"));
 
         verify(userService, times(1)).getUserById(userId);
         verify(postService, times(1)).getPostById(postId);
@@ -115,24 +139,26 @@ public class LikeServiceTest {
     }
 
     @Test
-    void toggleLike_withNullUserId_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            likeService.toggleLike(null, postId);
-        }, "Should throw IllegalArgumentException for null userId.");
+    void toggleLike_nullUserId_shouldThrowIllegalArgumentException() {
+        Long postId = testPost.getId();
 
-        verifyNoInteractions(userService);
-        verifyNoInteractions(postService);
-        verifyNoInteractions(likeRepository);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
+            likeService.toggleLike(null, postId);
+        });
+
+        assertTrue(ex.getMessage().contains("User ID cannot be null"));
+        verifyNoInteractions(userService, postService, likeRepository);
     }
 
     @Test
-    void toggleLike_withNullPostId_shouldThrowIllegalArgumentException() {
-        assertThrows(IllegalArgumentException.class, () ->
-                likeService.toggleLike(userId, null),
-                "Should throw IllegalArgumentException for null postId.");
+    void toggleLike_nullPostId_shouldThrowIllegalArgumentException() {
+        Long userId = testUser.getId();
 
-        verifyNoInteractions(userService);
-        verifyNoInteractions(postService);
-        verifyNoInteractions(likeRepository);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
+            likeService.toggleLike(userId, null);
+        });
+
+        assertTrue(ex.getMessage().contains("Post ID cannot be null"));
+        verifyNoInteractions(userService, postService, likeRepository);
     }
 }
