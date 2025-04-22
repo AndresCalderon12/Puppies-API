@@ -2,6 +2,9 @@ package com.puppies.api.controller;
 
 
 import com.puppies.api.dto.request.CreateUserRequest;
+import com.puppies.api.dto.response.PostResponseDTO;
+import com.puppies.api.dto.response.UserResponseDTO;
+import com.puppies.api.model.Post;
 import com.puppies.api.model.User;
 import com.puppies.api.service.UserService;
 import org.springframework.http.HttpStatus;
@@ -21,9 +24,17 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody CreateUserRequest request) {
-        User user = userService.createUser(request.getName(), request.getEmail());
-        return new ResponseEntity<>(user, HttpStatus.CREATED);
+    public ResponseEntity<UserResponseDTO> createUser(@RequestBody CreateUserRequest request) {
+        User createdUser = userService.createUser(request.getName(), request.getEmail(), request.getPassword());
+        return new ResponseEntity<>(mapToUserResponseDto(createdUser), HttpStatus.CREATED);
+    }
+
+    private UserResponseDTO mapToUserResponseDto(User user) {
+        UserResponseDTO dto = new UserResponseDTO();
+        dto.setId(user.getId());
+        dto.setName(user.getName());
+        dto.setEmail(user.getEmail());
+        return dto;
     }
 }
 

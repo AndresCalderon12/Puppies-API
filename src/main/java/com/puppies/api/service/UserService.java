@@ -10,27 +10,31 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
-import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Locale;
+
 
 @Service
 public class UserService implements UserDetailsService {
 
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
+    private final PasswordEncoder passwordEncoder;
+
     private final UserRepository userRepository;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
     }
 
     @Transactional
-    public User createUser(String name, String email) {
+    public User createUser(String name, String email, String password) {
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
         String trimmedName = name.trim();
 
@@ -39,11 +43,12 @@ public class UserService implements UserDetailsService {
         if (userRepository.findByEmail(normalizedEmail).isPresent()) {
             String errorMessage = "User with email " + normalizedEmail + " already exists.";
             log.warn(errorMessage);
-            throw new UserAlreadyExistsException(errorMessage); // Throw specific exception
+            throw new UserAlreadyExistsException(errorMessage);
         }
 
         User user = new User();
         user.setName(trimmedName);
+        user.setPassword(passwordEncoder.encode(password));
         user.setEmail(normalizedEmail);
 
         User savedUser = userRepository.save(user);
