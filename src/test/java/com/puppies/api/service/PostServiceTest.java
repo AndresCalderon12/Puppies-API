@@ -2,6 +2,7 @@ package com.puppies.api.service;
 
 import com.puppies.api.dto.response.PostResponseDTO;
 import com.puppies.api.exception.NotFoundException;
+import com.puppies.api.model.Like;
 import com.puppies.api.model.Post;
 import com.puppies.api.model.User;
 import com.puppies.api.repository.LikeRepository;
@@ -16,26 +17,30 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.*;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class PostServiceTest {
+
     @Mock
     private PostRepository postRepository;
 
     @Mock
     private LikeRepository likePostRepository;
 
-    @InjectMocks
-    private PostService postService;
-
     @Mock
     private UserService userService;
+
+    @InjectMocks
+    private PostService postService;
 
     private User testUser1;
     private User testUser2;
@@ -54,16 +59,16 @@ public class PostServiceTest {
 
     @Test
     void createPost_validInput_shouldSavePostAndReturn() {
-        // Arrange
         Long userId = 1L;
         String imageUrl = " https://example.com/image.jpg ";
         String textContent = " Cute puppy! ";
-        User creator = new User(userId, "Creator", "creator@example.com","test");
+        User creator = new User(userId, "Creator", "creator@example.com", "test");
 
         when(userService.getUserById(userId)).thenReturn(Optional.of(creator));
 
         ArgumentCaptor<Post> postCaptor = ArgumentCaptor.forClass(Post.class);
-        when(postRepository.save(postCaptor.capture())).thenAnswer(invocation -> invocation.<Post>getArgument(0));
+        when(postRepository.save(postCaptor.capture())).thenAnswer(invocation ->
+                invocation.<Post>getArgument(0));
 
         Post createdPost = postService.createPost(userId, imageUrl, textContent);
 
@@ -97,33 +102,45 @@ public class PostServiceTest {
         verify(postRepository, never()).save(any(Post.class));
     }
 
+
     @Test
-    void getUserFeed_postsExist_shouldReturnPagedPosts() {
-        User user1 = new User(1L, "User 1", "user1@example.com","test");
-        User user2 = new User(2L, "User 2", "user2@example.com","test");
-        LocalDateTime now = LocalDateTime.now();
-        Post post1 = new Post(1L, "url1", "text1", now.minusDays(1), user1);
-        Post post2 = new Post(2L, "url2", "text2", now, user2);
+    void getUserFeed_postsExist_shouldReturnPagedDTOsWithLikeCounts() {
         Pageable pageable = PageRequest.of(0, 5, Sort.by("date").descending());
-        List<Post> expectedContent = List.of(post2, post1);
-        long totalElements = 25;
+        List<Post> feedContent = List.of(testPost2, testPost1);
+        Page<Post> feedPage = new PageImpl<>(feedContent, pageable, 2);
+        long likesForPost1 = 5;
+        long likesForPost2 = 10;
 
-        Page<Post> expectedPage = new PageImpl<>(expectedContent, pageable, totalElements);
+        List<Like> likesForPost1List = Collections.nCopies((int)likesForPost1, new Like(null,testUser1, testPost1)); // Simplified mock likes
+        List<Like> likesForPost2List = Collections.nCopies((int)likesForPost2, new Like(null,testUser2, testPost2)); // Simplified mock likes
+        List<Like> allLikes = new java.util.ArrayList<>(likesForPost1List);
+        allLikes.addAll(likesForPost2List);
 
-        when(postRepository.findAll(pageable)).thenReturn(expectedPage);
+        List<Long> expectedPostIds = List.of(testPost2.getId(), testPost1.getId());
 
-        Page<Post> actualPage = postService.getUserFeed(pageable);
+        when(postRepository.findAll(pageable)).thenReturn(feedPage);
+        when(likePostRepository.findByPostIdIn(expectedPostIds)).thenReturn(allLikes);
 
-        assertNotNull(actualPage);
-        assertEquals(expectedContent.size(), actualPage.getContent().size());
-        assertEquals(totalElements, actualPage.getTotalElements());
-        assertEquals(expectedPage.getTotalPages(), actualPage.getTotalPages());
-        assertEquals(pageable.getPageNumber(), actualPage.getNumber());
-        assertEquals(expectedContent.get(0).getId(), actualPage.getContent().get(0).getId());
-        assertEquals(expectedContent.get(1).getId(), actualPage.getContent().get(1).getId());
+
+        Page<PostResponseDTO> actualDtoPage = postService.getUserFeed(pageable);
+
+        assertNotNull(actualDtoPage);
+        assertEquals(2, actualDtoPage.getContent().size());
+        assertEquals(2, actualDtoPage.getTotalElements());
+
+        PostResponseDTO dto1 = actualDtoPage.getContent().get(0);
+        assertEquals(testPost2.getId(), dto1.getId());
+        assertEquals(likesForPost2, dto1.getLikeCount());
+
+        PostResponseDTO dto2 = actualDtoPage.getContent().get(1);
+        assertEquals(testPost1.getId(), dto2.getId());
+        assertEquals(likesForPost1, dto2.getLikeCount());
 
         verify(postRepository, times(1)).findAll(pageable);
+        verify(likePostRepository, times(1)).findByPostIdIn(expectedPostIds);
+        verify(likePostRepository, never()).countByPostId(anyLong());
     }
+
 
     @Test
     void getUserFeed_noPosts_shouldReturnEmptyPage() {
@@ -132,7 +149,7 @@ public class PostServiceTest {
 
         when(postRepository.findAll(pageable)).thenReturn(emptyPage);
 
-        Page<Post> actualPage = postService.getUserFeed(pageable);
+        Page<PostResponseDTO> actualPage = postService.getUserFeed(pageable);
 
         assertNotNull(actualPage);
         assertTrue(actualPage.isEmpty());
@@ -141,6 +158,7 @@ public class PostServiceTest {
         assertEquals(0, actualPage.getContent().size());
 
         verify(postRepository, times(1)).findAll(pageable);
+        verify(likePostRepository, never()).findByPostIdIn(anyList());
     }
 
     @Test
@@ -151,20 +169,24 @@ public class PostServiceTest {
     }
 
     @Test
-    void getPostById_existingId_shouldReturnPost() {
-        Long postId = 10L;
-        User user = new User(1L, "User", "user@example.com","test");
-        Post expectedPost = new Post(postId, "url", "content", LocalDateTime.now(), user);
-        when(postRepository.findById(postId)).thenReturn(Optional.of(expectedPost));
+    void getPostById_existingId_shouldReturnPostDTOWithLikeCount() {
+        Long postId = testPost1.getId();
+        long expectedLikeCount = 7;
 
-        Post actualPost = postService.getPostById(postId);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(testPost1));
+        when(likePostRepository.countByPostId(postId)).thenReturn(expectedLikeCount);
 
-        assertNotNull(actualPost);
-        assertEquals(expectedPost.getId(), actualPost.getId());
-        assertEquals(expectedPost.getImageUrl(), actualPost.getImageUrl());
+        PostResponseDTO actualPostDto = postService.getPostById(postId);
+
+        assertNotNull(actualPostDto);
+        assertEquals(testPost1.getId(), actualPostDto.getId());
+        assertEquals(testPost1.getImageUrl(), actualPostDto.getImageUrl());
+        assertEquals(expectedLikeCount, actualPostDto.getLikeCount());
 
         verify(postRepository, times(1)).findById(postId);
+        verify(likePostRepository, times(1)).countByPostId(postId);
     }
+
 
     @Test
     void getPostById_nonExistingId_shouldThrowNotFoundException() {
@@ -173,21 +195,28 @@ public class PostServiceTest {
 
         assertThrows(NotFoundException.class, () -> postService.getPostById(postId));
         verify(postRepository, times(1)).findById(postId);
+        verify(likePostRepository, never()).countByPostId(anyLong());
     }
 
     @Test
     void getLikedPosts_validInput_shouldReturnPagedDTOsWithLikeCounts() {
         Long userId = testUser1.getId();
         Pageable pageable = PageRequest.of(0, 10);
-        List<Post> likedPostsContent = List.of(testPost2, testPost1); // User1 liked post2 then post1
+        List<Post> likedPostsContent = List.of(testPost2, testPost1);
         Page<Post> likedPostsPage = new PageImpl<>(likedPostsContent, pageable, 2);
         long likesForPost1 = 5;
         long likesForPost2 = 10;
 
+        List<Like> likesForPost1List = Collections.nCopies((int)likesForPost1, new Like(null,testUser1, testPost1));
+        List<Like> likesForPost2List = Collections.nCopies((int)likesForPost2, new Like(null,testUser2, testPost2));
+        List<Like> allLikes = new java.util.ArrayList<>(likesForPost1List);
+        allLikes.addAll(likesForPost2List);
+
+        List<Long> expectedPostIds = List.of(testPost2.getId(), testPost1.getId());
+
         when(postRepository.findPostsLikedByUser(userId, pageable)).thenReturn(likedPostsPage);
-        // Mock the like counts returned by the repository for each post in the list
-        when(likePostRepository.countByPostId(testPost1.getId())).thenReturn(likesForPost1);
-        when(likePostRepository.countByPostId(testPost2.getId())).thenReturn(likesForPost2);
+        when(likePostRepository.findByPostIdIn(expectedPostIds)).thenReturn(allLikes);
+
 
         Page<PostResponseDTO> actualDtoPage = postService.getLikedPosts(userId, pageable);
 
@@ -196,21 +225,21 @@ public class PostServiceTest {
         assertEquals(2, actualDtoPage.getTotalElements());
         assertEquals(pageable.getPageNumber(), actualDtoPage.getNumber());
 
-        // Verify DTO content and like counts
-        PostResponseDTO dto1 = actualDtoPage.getContent().get(0); // Should be post2 based on query order (newest like first)
+        PostResponseDTO dto1 = actualDtoPage.getContent().get(0);
         assertEquals(testPost2.getId(), dto1.getId());
         assertEquals(testUser2.getId(), dto1.getUserId());
         assertEquals(likesForPost2, dto1.getLikeCount());
 
-        PostResponseDTO dto2 = actualDtoPage.getContent().get(1); // Should be post1
+        PostResponseDTO dto2 = actualDtoPage.getContent().get(1);
         assertEquals(testPost1.getId(), dto2.getId());
         assertEquals(testUser1.getId(), dto2.getUserId());
         assertEquals(likesForPost1, dto2.getLikeCount());
 
         verify(postRepository, times(1)).findPostsLikedByUser(userId, pageable);
-        verify(likePostRepository, times(1)).countByPostId(testPost1.getId());
-        verify(likePostRepository, times(1)).countByPostId(testPost2.getId());
+        verify(likePostRepository, times(1)).findByPostIdIn(expectedPostIds);
+        verify(likePostRepository, never()).countByPostId(anyLong());
     }
+
 
     @Test
     void getLikedPosts_noLikedPosts_shouldReturnEmptyPage() {
@@ -227,7 +256,7 @@ public class PostServiceTest {
         assertEquals(0, actualDtoPage.getTotalElements());
 
         verify(postRepository, times(1)).findPostsLikedByUser(userId, pageable);
-        verify(likePostRepository, never()).countByPostId(anyLong()); // No posts, so no count needed
+        verify(likePostRepository, never()).findByPostIdIn(anyList());
     }
 
     @Test
@@ -241,25 +270,26 @@ public class PostServiceTest {
     @Test
     void getLikedPosts_nullPageable_shouldThrowIllegalArgumentException() {
         Long userId = testUser1.getId();
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                postService.getLikedPosts(userId, null));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> postService.getLikedPosts(userId, null));
         assertTrue(ex.getMessage().contains("Pageable cannot be null"));
         verify(postRepository, never()).findPostsLikedByUser(any(), any());
     }
-
-    // --- getUserPosts Tests ---
 
     @Test
     void getUserPosts_validInput_shouldReturnPagedDTOsWithLikeCounts() {
         Long userId = testUser1.getId();
         Pageable pageable = PageRequest.of(0, 10, Sort.by("date").descending());
-        // User1 only created testPost1 in our setup
         List<Post> userPostsContent = List.of(testPost1);
         Page<Post> userPostsPage = new PageImpl<>(userPostsContent, pageable, 1);
         long likesForPost1 = 7;
 
+        List<Like> likesForPost1List = Collections.nCopies((int)likesForPost1, new Like(null,testUser1, testPost1));
+        List<Long> expectedPostIds = List.of(testPost1.getId());
+
+
         when(postRepository.findByUserIdOrderByDateDesc(userId, pageable)).thenReturn(userPostsPage);
-        when(likePostRepository.countByPostId(testPost1.getId())).thenReturn(likesForPost1);
+        when(likePostRepository.findByPostIdIn(expectedPostIds)).thenReturn(likesForPost1List);
+
 
         Page<PostResponseDTO> actualDtoPage = postService.getUserPosts(userId, pageable);
 
@@ -268,19 +298,19 @@ public class PostServiceTest {
         assertEquals(1, actualDtoPage.getTotalElements());
         assertEquals(pageable.getPageNumber(), actualDtoPage.getNumber());
 
-        // Verify DTO content and like count
         PostResponseDTO dto1 = actualDtoPage.getContent().get(0);
         assertEquals(testPost1.getId(), dto1.getId());
         assertEquals(testUser1.getId(), dto1.getUserId());
         assertEquals(likesForPost1, dto1.getLikeCount());
 
         verify(postRepository, times(1)).findByUserIdOrderByDateDesc(userId, pageable);
-        verify(likePostRepository, times(1)).countByPostId(testPost1.getId());
+        verify(likePostRepository, times(1)).findByPostIdIn(expectedPostIds);
+        verify(likePostRepository, never()).countByPostId(anyLong());
     }
 
     @Test
     void getUserPosts_userHasNoPosts_shouldReturnEmptyPage() {
-        Long userId = testUser2.getId(); // User who hasn't created posts in this setup
+        Long userId = testUser2.getId();
         Pageable pageable = PageRequest.of(0, 10, Sort.by("date").descending());
         Page<Post> emptyPage = Page.empty(pageable);
 
@@ -293,14 +323,13 @@ public class PostServiceTest {
         assertEquals(0, actualDtoPage.getTotalElements());
 
         verify(postRepository, times(1)).findByUserIdOrderByDateDesc(userId, pageable);
-        verify(likePostRepository, never()).countByPostId(anyLong());
+        verify(likePostRepository, never()).findByPostIdIn(anyList());
     }
 
     @Test
     void getUserPosts_nullUserId_shouldThrowIllegalArgumentException() {
         Pageable pageable = PageRequest.of(0, 10);
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                postService.getUserPosts(null, pageable));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> postService.getUserPosts(null, pageable));
         assertTrue(ex.getMessage().contains("User ID cannot be null"));
         verify(postRepository, never()).findByUserIdOrderByDateDesc(any(), any());
     }
@@ -308,12 +337,10 @@ public class PostServiceTest {
     @Test
     void getUserPosts_nullPageable_shouldThrowIllegalArgumentException() {
         Long userId = testUser1.getId();
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, ()
-                -> postService.getUserPosts(userId, null));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                postService.getUserPosts(userId, null));
         assertTrue(ex.getMessage().contains("Pageable cannot be null"));
         verify(postRepository, never()).findByUserIdOrderByDateDesc(any(), any());
     }
-
-
 
 }

@@ -5,6 +5,7 @@ import com.puppies.api.model.Like;
 import com.puppies.api.model.Post;
 import com.puppies.api.model.User;
 import com.puppies.api.repository.LikeRepository;
+import com.puppies.api.repository.PostRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,7 +31,7 @@ class LikeServiceTest {
     private UserService userService;
 
     @Mock
-    private PostService postService;
+    private PostRepository postRepository;
 
     @InjectMocks
     private LikeService likeService;
@@ -55,11 +56,11 @@ class LikeServiceTest {
         Long postId = testPost.getId();
 
         when(userService.getUserById(userId)).thenReturn(Optional.of(testUser));
-        when(postService.getPostById(postId)).thenReturn(testPost);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(testPost));
         when(likeRepository.findByUserAndPost(testUser, testPost)).thenReturn(Optional.empty());
 
         ArgumentCaptor<Like> likeCaptor = ArgumentCaptor.forClass(Like.class);
-        when(likeRepository.save(likeCaptor.capture())).thenReturn(testLike); // Return a mock saved like
+        when(likeRepository.save(likeCaptor.capture())).thenReturn(testLike);
 
         boolean result = likeService.toggleLike(userId, postId);
 
@@ -68,10 +69,10 @@ class LikeServiceTest {
         assertNotNull(capturedLike);
         assertEquals(testUser, capturedLike.getUser());
         assertEquals(testPost, capturedLike.getPost());
-        assertNull(capturedLike.getId()); // ID should be null before save
+        assertNull(capturedLike.getId());
 
         verify(userService, times(1)).getUserById(userId);
-        verify(postService, times(1)).getPostById(postId);
+        verify(postRepository, times(1)).findById(postId);
         verify(likeRepository, times(1)).findByUserAndPost(testUser, testPost);
         verify(likeRepository, times(1)).save(any(Like.class));
         verify(likeRepository, never()).delete(any(Like.class));
@@ -83,9 +84,8 @@ class LikeServiceTest {
         Long postId = testPost.getId();
 
         when(userService.getUserById(userId)).thenReturn(Optional.of(testUser));
-        when(postService.getPostById(postId)).thenReturn(testPost);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(testPost));
         when(likeRepository.findByUserAndPost(testUser, testPost)).thenReturn(Optional.of(testLike));
-        // No need to mock delete, just verify it's called
         doNothing().when(likeRepository).delete(testLike);
 
         boolean result = likeService.toggleLike(userId, postId);
@@ -93,7 +93,7 @@ class LikeServiceTest {
         assertFalse(result);
 
         verify(userService, times(1)).getUserById(userId);
-        verify(postService, times(1)).getPostById(postId);
+        verify(postRepository, times(1)).findById(postId);
         verify(likeRepository, times(1)).findByUserAndPost(testUser, testPost);
         verify(likeRepository, times(1)).delete(testLike);
         verify(likeRepository, never()).save(any(Like.class));
@@ -105,16 +105,14 @@ class LikeServiceTest {
         Long postId = testPost.getId();
 
         when(userService.getUserById(userId)).thenReturn(Optional.empty());
-        // postService.getPostById should not be called
 
-        NotFoundException ex = assertThrows(NotFoundException.class, () -> {
-            likeService.toggleLike(userId, postId);
-        });
+        NotFoundException ex = assertThrows(NotFoundException.class, () ->
+                likeService.toggleLike(userId, postId));
 
         assertTrue(ex.getMessage().contains("User not found"));
 
         verify(userService, times(1)).getUserById(userId);
-        verifyNoInteractions(postService);
+        verifyNoInteractions(postRepository);
         verifyNoInteractions(likeRepository);
     }
 
@@ -124,17 +122,15 @@ class LikeServiceTest {
         Long postId = 99L;
 
         when(userService.getUserById(userId)).thenReturn(Optional.of(testUser));
-        // Simulate PostService throwing NotFoundException
-        when(postService.getPostById(postId)).thenThrow(new NotFoundException("Post not found"));
+        when(postRepository.findById(postId)).thenReturn(Optional.empty());
 
-        NotFoundException ex = assertThrows(NotFoundException.class, () -> {
-            likeService.toggleLike(userId, postId);
-        });
+        NotFoundException ex = assertThrows(NotFoundException.class, () ->
+                likeService.toggleLike(userId, postId));
 
         assertTrue(ex.getMessage().contains("Post not found"));
 
         verify(userService, times(1)).getUserById(userId);
-        verify(postService, times(1)).getPostById(postId);
+        verify(postRepository, times(1)).findById(postId);
         verifyNoInteractions(likeRepository);
     }
 
@@ -142,23 +138,21 @@ class LikeServiceTest {
     void toggleLike_nullUserId_shouldThrowIllegalArgumentException() {
         Long postId = testPost.getId();
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
-            likeService.toggleLike(null, postId);
-        });
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                likeService.toggleLike(null, postId));
 
         assertTrue(ex.getMessage().contains("User ID cannot be null"));
-        verifyNoInteractions(userService, postService, likeRepository);
+        verifyNoInteractions(userService, postRepository, likeRepository);
     }
 
     @Test
     void toggleLike_nullPostId_shouldThrowIllegalArgumentException() {
         Long userId = testUser.getId();
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
-            likeService.toggleLike(userId, null);
-        });
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                likeService.toggleLike(userId, null));
 
         assertTrue(ex.getMessage().contains("Post ID cannot be null"));
-        verifyNoInteractions(userService, postService, likeRepository);
+        verifyNoInteractions(userService, postRepository, likeRepository);
     }
 }

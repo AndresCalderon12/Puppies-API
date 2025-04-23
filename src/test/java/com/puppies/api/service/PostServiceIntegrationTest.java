@@ -102,7 +102,7 @@ class PostServiceIntegrationTest extends BaseIntegrationTest {
         Like like2 = new Like(null, user2, post);
         likeRepository.saveAll(List.of(like1, like2));
 
-        Post postDetails = postService.getPostById(post.getId());
+        PostResponseDTO postDetails = postService.getPostById(post.getId());
 
         assertThat(postDetails).isNotNull();
         assertThat(postDetails.getId()).isEqualTo(post.getId());
@@ -126,7 +126,7 @@ class PostServiceIntegrationTest extends BaseIntegrationTest {
 
         Pageable pageable = PageRequest.of(0, 2, Sort.by("date").descending());
 
-        Page<Post> feedPage = postService.getUserFeed(pageable);
+        Page<PostResponseDTO> feedPage = postService.getUserFeed(pageable);
 
         assertThat(feedPage).isNotNull();
         assertThat(feedPage.getTotalElements()).isEqualTo(3);

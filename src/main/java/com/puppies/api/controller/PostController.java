@@ -24,24 +24,25 @@ public class PostController {
 
     @PostMapping
     public ResponseEntity<PostResponseDTO> createPost(@RequestBody CreatePostRequest request, Authentication authentication) {
-        Long userId = ((User) authentication.getPrincipal()).getId();
-        Post createdPost = postService.createPost(userId, request.getImageUrl(), request.getTextContent());
-        PostResponseDTO responseDto = mapToPostResponseDTO(createdPost);
+        Long userId = ((User) authentication.getPrincipal()).getId(); // Ensure Principal is User
+
+        com.puppies.api.model.Post createdPostEntity = postService.createPost(userId, request.getImageUrl(), request.getTextContent());
+
+        PostResponseDTO responseDto = postService.getPostById(createdPostEntity.getId());
+
         return new ResponseEntity<>(responseDto, HttpStatus.CREATED);
     }
 
     @GetMapping("/feed")
     public ResponseEntity<Page<PostResponseDTO>> getUserFeed(Pageable pageable) {
-        Page<Post> postPage = postService.getUserFeed(pageable);
-        Page<PostResponseDTO> dtoPage = postPage.map(this::mapToPostResponseDTO);
-        return new ResponseEntity<>(dtoPage, HttpStatus.OK);
+        Page<PostResponseDTO> postPage = postService.getUserFeed(pageable);
+        return new ResponseEntity<>(postPage, HttpStatus.OK);
     }
 
     @GetMapping("/{postId}")
     public ResponseEntity<PostResponseDTO> getPostDetails(@PathVariable Long postId) {
-        Post post = postService.getPostById(postId);
-        PostResponseDTO responseDto = mapToPostResponseDTO(post);
-        return new ResponseEntity<>(responseDto, HttpStatus.OK);
+        PostResponseDTO post = postService.getPostById(postId);
+        return new ResponseEntity<>(post, HttpStatus.OK);
     }
 
     @GetMapping("/{userId}/likes")
@@ -58,20 +59,6 @@ public class PostController {
             Pageable pageable) {
         Page<PostResponseDTO> likedPosts = postService.getUserPosts(userId, pageable);
         return ResponseEntity.ok(likedPosts);
-    }
-
-    private PostResponseDTO mapToPostResponseDTO(Post post) {
-        PostResponseDTO dto = new PostResponseDTO();
-        dto.setId(post.getId());
-        dto.setImageUrl(post.getImageUrl());
-        dto.setLikeCount(postService.getLikeCount(post));
-        dto.setTextContent(post.getTextContent());
-        dto.setDate(post.getDate());
-        if (post.getUser() != null) {
-            dto.setUserId(post.getUser().getId());
-            dto.setUserName(post.getUser().getName());
-        }
-        return dto;
     }
 
 }
