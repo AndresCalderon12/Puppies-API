@@ -51,9 +51,9 @@ Ensure PostgreSQL is running, then create the database:
 CREATE DATABASE puppies;
 ```
 ### Test Database: (e.g., `puppies_test`)
-    ```sql
-    CREATE DATABASE puppies_test;
-    ```
+```sql
+CREATE DATABASE puppies_test;
+```
 
 Update the connection details in `src/main/resources/application.properties`:
 
