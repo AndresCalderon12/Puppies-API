@@ -161,7 +161,6 @@ mvn test
 - ❌ No JWT refresh token flow
 - ❌ No server-side token revocation (logout handled client-side)
 - 📛 Global error handling is basic; validation errors could be more descriptive
-- 🐢 Possible N+1 query issues in post/like fetching
 - 🔍 Input validation could be more comprehensive
 - 🖼️ Only image URLs supported—no upload or file storage
 ----
