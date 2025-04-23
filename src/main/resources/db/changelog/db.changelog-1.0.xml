@@ -22,7 +22,7 @@
         </createTable>
     </changeSet>
 
-    <changeSet id="create-posts-table" author="your-name">
+    <changeSet id="create-posts-table" author="Andres Calderon">
         <createTable tableName="posts">
             <column name="id" type="BIGINT" autoIncrement="true">
                 <constraints primaryKey="true"/>
@@ -42,7 +42,7 @@
                                  referencedTableName="users" referencedColumnNames="id"/>
     </changeSet>
 
-    <changeSet id="create-likes-table" author="your-name">
+    <changeSet id="create-likes-table" author="Andres Calderon">
         <createTable tableName="likes">
             <column name="id" type="BIGINT" autoIncrement="true">
                 <constraints primaryKey="true"/>
